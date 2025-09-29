@@ -5,8 +5,15 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm, CSRFProtectionForm
-from models import db, connect_db, User, Message
+from forms import (
+    UserAddForm,
+    LoginForm,
+    MessageForm,
+    CSRFProtectionForm,
+    UserEditForm,
+)
+from models import (
+    db, connect_db, User, Message, DEFAULT_IMAGE_URL, DEFAULT_HEADER_IMAGE_URL)
 
 load_dotenv()
 
@@ -233,7 +240,33 @@ def stop_following(follow_id):
 def profile():
     """Update profile for current user."""
 
-    # IMPLEMENT THIS
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    form = UserEditForm(obj=g.user)
+
+    if form.validate_on_submit():
+        user = User.authenticate(
+            g.user.username,
+            form.password.data,
+        )
+
+        if user and user.id == g.user.id:
+            user.username = form.username.data
+            user.email = form.email.data
+            user.image_url = form.image_url.data or DEFAULT_IMAGE_URL
+            user.header_url = (
+                form.header_image_url.data or DEFAULT_HEADER_IMAGE_URL)
+            user.bio = form.bio.data
+
+            db.session.commit()
+            flash("Profile Updated", "success")
+            return redirect(f"/user/{user.id}")
+
+        flash("Wrong password, please try again.", 'danger')
+
+    return render_template("users/edit.html", form=form, user_id=g.user.id)
 
 
 @app.post('/users/delete')
@@ -325,8 +358,11 @@ def homepage():
     """
 
     if g.user:
+        following_ids = [user.id for user in g.user.following] + [g.user.id]
+        
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
