@@ -44,12 +44,14 @@ def add_user_to_g():
     else:
         g.user = None
 
+
 @app.before_request
 def add_csrf_form_to_g():
     """If we're logged in, add csrf_form to Flask global."""
 
     if CURR_USER_KEY in session:
         g.csrf_form = CSRFProtectionForm()
+
 
 def do_login(user):
     """Log in user."""
@@ -133,7 +135,7 @@ def logout():
     if not form.validate_on_submit() or not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
-    
+
     do_logout()
     flash("You have successfully logged out.", 'success')
     return redirect("/login")
@@ -200,6 +202,18 @@ def show_followers(user_id):
     return render_template('users/followers.html', user=user)
 
 
+@app.get("/users/<int:user_id>/likes")
+def show_liked_messages(user_id):
+    """Show list of liked messages of this user."""
+    
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    return render_template('users/likes.html', user=user)
+
+
 @app.post('/users/follow/<int:follow_id>')
 def start_following(follow_id):
     """Add a follow for the currently-logged-in user.
@@ -210,7 +224,7 @@ def start_following(follow_id):
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
-
+    print('start_following executed')
     followed_user = User.query.get_or_404(follow_id)
     g.user.following.append(followed_user)
     db.session.commit()
@@ -234,6 +248,47 @@ def stop_following(follow_id):
     db.session.commit()
 
     return redirect(f"/users/{g.user.id}/following")
+
+
+@app.post('/messages/<int:message_id>/like')
+def add_like(message_id):
+    """Have currently-logged-in-user add like of a message. 
+
+    User stays on the same page after after adding like.
+    """
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    redirection_url = request.form.get("came-from", "/")
+    liked_message = Message.query.get_or_404(message_id)
+    
+    if not liked_message.user.id == g.user.id: 
+        g.user.liked_messages.append(liked_message)
+        db.session.commit()
+
+    return redirect(redirection_url)
+
+
+@app.post('/messages/<int:message_id>/remove-like')
+def remove_like(message_id):
+    """Have currently-logged-in-user remove like of a liked message.
+    
+    User stays on the same page after after removing like.
+    """
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+    
+    redirection_url = request.form.get("came-from", "/")
+    liked_message = Message.query.get_or_404(message_id)
+    
+    g.user.liked_messages.remove(liked_message)
+    db.session.commit()
+
+    return redirect(redirection_url)
 
 
 @app.route('/users/profile', methods=["GET", "POST"])
