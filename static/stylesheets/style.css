@@ -20,6 +20,19 @@ body.error-404 {
   cursor: pointer;
 }
 
+.icon-only-button {
+  background: transparent;
+  border: none;
+  padding: 0; 
+  outline: none; 
+  box-shadow: none; 
+  cursor: pointer;
+}
+
+.icon-only-button:hover {
+  transform: scale(1.3); /* Scales the element to 130% of its original size */
+}
+
 /* ======================= Nav */
 
 .navbar {
@@ -271,6 +284,13 @@ nav + .container {
 #messages .list-group-item a:not(.message-link) {
   position: relative;
   z-index: 2;
+}
+
+#messages .list-group-item .like {
+  position: absolute;
+  right:10px;
+  bottom:8px;
+  z-index: 3;
 }
 
 #messages .list-group-item {
